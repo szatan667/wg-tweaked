@@ -69,7 +69,7 @@ func NewManageTunnelsWindow() (*ManageTunnelsWindow, error) {
 	if icon, err := loadLogoIcon(32); err == nil {
 		mtw.SetIcon(icon)
 	}
-	mtw.SetTitle("WireGuard")
+	mtw.SetTitle("WireGuard by szatan667")
 	mtw.SetFont(font)
 	var rect win.RECT
 	win.SystemParametersInfo(0x0030, 0, unsafe.Pointer(&rect), 0)
