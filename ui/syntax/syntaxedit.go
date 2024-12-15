@@ -43,11 +43,11 @@ func (se *SyntaxEdit) LayoutFlags() walk.LayoutFlags {
 }
 
 func (se *SyntaxEdit) MinSizeHint() walk.Size {
-	return walk.Size{20, 12}
+	return walk.Size{Width: 20, Height: 12}
 }
 
 func (se *SyntaxEdit) SizeHint() walk.Size {
-	return walk.Size{200, 100}
+	return walk.Size{Width: 200, Height: 100}
 }
 
 func (*SyntaxEdit) CreateLayoutItem(ctx *walk.LayoutContext) walk.LayoutItem {
@@ -204,7 +204,7 @@ func (se *SyntaxEdit) highlightText() error {
 	}
 	msgSize := uint32(win.SendMessage(hWnd, win.EM_GETTEXTLENGTHEX, uintptr(unsafe.Pointer(&gettextlengthex)), 0))
 	if msgSize == win.E_INVALIDARG {
-		return errors.New("Failed to get text length")
+		return errors.New("failed to get text length")
 	}
 
 	gettextex := win.GETTEXTEX{
@@ -214,8 +214,8 @@ func (se *SyntaxEdit) highlightText() error {
 	}
 	msg := make([]byte, msgSize+1)
 	msgCount := win.SendMessage(hWnd, win.EM_GETTEXTEX, uintptr(unsafe.Pointer(&gettextex)), uintptr(unsafe.Pointer(&msg[0])))
-	if msgCount < 0 {
-		return errors.New("Failed to get text")
+	if msgCount <= 0 {
+		return errors.New("failed to get text")
 	}
 	cfg := strings.Replace(string(msg[:msgCount]), "\r", "\n", -1)
 
@@ -250,7 +250,7 @@ func (se *SyntaxEdit) highlightText() error {
 	for i := range spans {
 		span := &spans[i]
 		if numSpans <= 2048 {
-			selection := win.CHARRANGE{int32(span.s), int32(span.s + span.len)}
+			selection := win.CHARRANGE{CpMin: int32(span.s), CpMax: int32(span.s + span.len)}
 			win.SendMessage(hWnd, win.EM_EXSETSEL, 0, uintptr(unsafe.Pointer(&selection)))
 			format.CrTextColor = stylemap[span.t].color ^ bgInversion
 			format.DwEffects = stylemap[span.t].effects
@@ -283,11 +283,11 @@ func (se *SyntaxEdit) contextMenu(x, y int32) error {
 	}
 	comctl32Handle := win.GetModuleHandle(comctl32UTF16)
 	if comctl32Handle == 0 {
-		return errors.New("Failed to get comctl32.dll handle")
+		return errors.New("failed to get comctl32.dll handle")
 	}
 	menu := win.LoadMenu(comctl32Handle, win.MAKEINTRESOURCE(1))
 	if menu == 0 {
-		return errors.New("Failed to load menu")
+		return errors.New("failed to load menu")
 	}
 	defer win.DestroyMenu(menu)
 
@@ -453,7 +453,7 @@ func NewSyntaxEdit(parent walk.Container) (*SyntaxEdit, error) {
 	const LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 	_, err := windows.LoadLibraryEx("msftedit.dll", 0, LOAD_LIBRARY_SEARCH_SYSTEM32)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load msftedit.dll: %w", err)
+		return nil, fmt.Errorf("failed to load msftedit.dll: %w", err)
 	}
 
 	se := &SyntaxEdit{}

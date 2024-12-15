@@ -124,7 +124,7 @@ func ShellExecute(program, arguments, directory string, show int32) (err error) 
 			CbStruct:     uint32(unsafe.Sizeof(windows.BIND_OPTS3{})),
 			ClassContext: windows.CLSCTX_LOCAL_SERVER,
 		},
-		&windows.GUID{0x6EDD6D74, 0xC007, 0x4E75, [8]byte{0xB7, 0x6A, 0xE5, 0x74, 0x09, 0x95, 0xE2, 0x4C}},
+		&windows.GUID{Data1: 0x6EDD6D74, Data2: 0xC007, Data3: 0x4E75, Data4: [8]byte{0xB7, 0x6A, 0xE5, 0x74, 0x09, 0x95, 0xE2, 0x4C}},
 		(**uintptr)(unsafe.Pointer(&interfacePointer)),
 	); err != nil {
 		return
