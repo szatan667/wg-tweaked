@@ -362,7 +362,7 @@ func (tray *Tray) UpdateFound() {
 		tray.ShowCustom(l18n.Sprintf("WireGuard Update Available"), l18n.Sprintf("An update to WireGuard is now available. You are advised to update as soon as possible."), icon)
 	}
 
-	timeSinceStart := time.Now().Sub(startTime)
+	timeSinceStart := time.Since(startTime)
 	if timeSinceStart < time.Second*3 {
 		time.AfterFunc(time.Second*3-timeSinceStart, func() {
 			tray.mtw.Synchronize(showUpdateBalloon)

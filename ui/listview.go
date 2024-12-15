@@ -147,7 +147,7 @@ func (tv *ListView) StyleCell(style *walk.CellStyle) {
 			style.Image = cacheValue
 			return
 		}
-		bitmap, err := walk.NewBitmapWithTransparentPixelsForDPI(walk.Size{bitmapWidth, bitmapWidth}, tv.DPI())
+		bitmap, err := walk.NewBitmapWithTransparentPixelsForDPI(walk.Size{Width: bitmapWidth, Height: bitmapWidth}, tv.DPI())
 		if err != nil {
 			return
 		}

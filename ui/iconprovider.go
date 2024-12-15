@@ -43,13 +43,13 @@ func iconWithOverlayForState(state manager.TunnelState, size int) (icon walk.Ima
 	iconSize := wireguardIcon.Size()
 	w := int(float64(iconSize.Width) * 0.65)
 	h := int(float64(iconSize.Height) * 0.65)
-	overlayBounds := walk.Rectangle{iconSize.Width - w, iconSize.Height - h, w, h}
+	overlayBounds := walk.Rectangle{X: iconSize.Width - w, Y: iconSize.Height - h, Width: w, Height: h}
 	overlayIcon, err := iconForState(state, overlayBounds.Width)
 	if err != nil {
 		return
 	}
 
-	icon = walk.NewPaintFuncImage(walk.Size{size, size}, func(canvas *walk.Canvas, bounds walk.Rectangle) error {
+	icon = walk.NewPaintFuncImage(walk.Size{Width: size, Height: size}, func(canvas *walk.Canvas, bounds walk.Rectangle) error {
 		if err := canvas.DrawImageStretched(wireguardIcon, bounds); err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func iconForState(state manager.TunnelState, size int) (icon *walk.Icon, err err
 	case manager.TunnelStarted:
 		icon, err = loadSystemIcon("imageres", -106, size)
 	case manager.TunnelStopped:
-		icon, err = walk.NewIconFromResourceIdWithSize(8, walk.Size{size, size}) // TODO: replace with real icon from imageres/shell32
+		icon, err = walk.NewIconFromResourceIdWithSize(8, walk.Size{Width: size, Height: size}) // TODO: replace with real icon from imageres/shell32
 	default:
 		icon, err = loadSystemIcon("shell32", -16739, size) // TODO: this doesn't look that great overlayed on the app icon
 	}
@@ -136,7 +136,7 @@ func loadLogoIcon(size int) (icon *walk.Icon, err error) {
 	if icon != nil {
 		return
 	}
-	icon, err = walk.NewIconFromResourceIdWithSize(7, walk.Size{size, size})
+	icon, err = walk.NewIconFromResourceIdWithSize(7, walk.Size{Width: size, Height: size})
 	if err == nil {
 		cachedLogoIconsForWidth[size] = icon
 	}

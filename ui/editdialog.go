@@ -68,7 +68,7 @@ func newEditDialog(owner walk.Form, tunnel *manager.Tunnel) (*EditDialog, error)
 
 	layout := walk.NewGridLayout()
 	layout.SetSpacing(6)
-	layout.SetMargins(walk.Margins{10, 10, 10, 10})
+	layout.SetMargins(walk.Margins{HNear: 10, VNear: 10, HFar: 10, VFar: 10})
 	layout.SetColumnStretchFactor(1, 3)
 
 	if dlg.Dialog, err = walk.NewDialog(owner); err != nil {
@@ -78,7 +78,7 @@ func newEditDialog(owner walk.Form, tunnel *manager.Tunnel) (*EditDialog, error)
 	dlg.SetIcon(owner.Icon())
 	dlg.SetTitle(title)
 	dlg.SetLayout(layout)
-	dlg.SetMinMaxSize(walk.Size{500, 400}, walk.Size{0, 0})
+	dlg.SetMinMaxSize(walk.Size{Width: 500, Height: 400}, walk.Size{Width: 0, Height: 0})
 	if icon, err := loadSystemIcon("imageres", -114, 32); err == nil {
 		dlg.SetIcon(icon)
 	}
@@ -87,28 +87,28 @@ func newEditDialog(owner walk.Form, tunnel *manager.Tunnel) (*EditDialog, error)
 	if err != nil {
 		return nil, err
 	}
-	layout.SetRange(nameLabel, walk.Rectangle{0, 0, 1, 1})
+	layout.SetRange(nameLabel, walk.Rectangle{X: 0, Y: 0, Width: 1, Height: 1})
 	nameLabel.SetTextAlignment(walk.AlignHFarVCenter)
 	nameLabel.SetText(l18n.Sprintf("&Name:"))
 
 	if dlg.nameEdit, err = walk.NewLineEdit(dlg); err != nil {
 		return nil, err
 	}
-	layout.SetRange(dlg.nameEdit, walk.Rectangle{1, 0, 1, 1})
+	layout.SetRange(dlg.nameEdit, walk.Rectangle{X: 1, Y: 0, Width: 1, Height: 1})
 	dlg.nameEdit.SetText(dlg.config.Name)
 
 	pubkeyLabel, err := walk.NewTextLabel(dlg)
 	if err != nil {
 		return nil, err
 	}
-	layout.SetRange(pubkeyLabel, walk.Rectangle{0, 1, 1, 1})
+	layout.SetRange(pubkeyLabel, walk.Rectangle{X: 0, Y: 1, Width: 1, Height: 1})
 	pubkeyLabel.SetTextAlignment(walk.AlignHFarVCenter)
 	pubkeyLabel.SetText(l18n.Sprintf("&Public key:"))
 
 	if dlg.pubkeyEdit, err = walk.NewLineEdit(dlg); err != nil {
 		return nil, err
 	}
-	layout.SetRange(dlg.pubkeyEdit, walk.Rectangle{1, 1, 1, 1})
+	layout.SetRange(dlg.pubkeyEdit, walk.Rectangle{X: 1, Y: 1, Width: 1, Height: 1})
 	dlg.pubkeyEdit.SetReadOnly(true)
 	dlg.pubkeyEdit.SetText(l18n.Sprintf("(unknown)"))
 	dlg.pubkeyEdit.Accessibility().SetRole(walk.AccRoleStatictext)
@@ -116,13 +116,13 @@ func newEditDialog(owner walk.Form, tunnel *manager.Tunnel) (*EditDialog, error)
 	if dlg.syntaxEdit, err = syntax.NewSyntaxEdit(dlg); err != nil {
 		return nil, err
 	}
-	layout.SetRange(dlg.syntaxEdit, walk.Rectangle{0, 2, 2, 1})
+	layout.SetRange(dlg.syntaxEdit, walk.Rectangle{X: 0, Y: 2, Width: 2, Height: 1})
 
 	buttonsContainer, err := walk.NewComposite(dlg)
 	if err != nil {
 		return nil, err
 	}
-	layout.SetRange(buttonsContainer, walk.Rectangle{0, 3, 2, 1})
+	layout.SetRange(buttonsContainer, walk.Rectangle{X: 0, Y: 3, Width: 2, Height: 1})
 	buttonsContainer.SetLayout(walk.NewHBoxLayout())
 	buttonsContainer.Layout().SetMargins(walk.Margins{})
 

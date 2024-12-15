@@ -247,7 +247,7 @@ func newToggleActiveLine(parent walk.Container) (*toggleActiveLine, error) {
 	}
 	disposables.Add(tal.composite)
 	layout := walk.NewHBoxLayout()
-	layout.SetMargins(walk.Margins{0, 0, 0, 6})
+	layout.SetMargins(walk.Margins{HNear: 0, VNear: 0, HFar: 0, VFar: 6})
 	tal.composite.SetLayout(layout)
 
 	if tal.button, err = walk.NewPushButton(tal.composite); err != nil {
@@ -355,10 +355,10 @@ func layoutInGrid(view widgetsLinesView, layout *walk.GridLayout) {
 		w1, w2 := l.widgets()
 
 		if w1 != nil {
-			layout.SetRange(w1, walk.Rectangle{0, i, 1, 1})
+			layout.SetRange(w1, walk.Rectangle{X: 0, Y: i, Width: 1, Height: 1})
 		}
 		if w2 != nil {
-			layout.SetRange(w2, walk.Rectangle{2, i, 1, 1})
+			layout.SetRange(w2, walk.Rectangle{X: 2, Y: i, Width: 1, Height: 1})
 		}
 	}
 }
@@ -500,17 +500,17 @@ func newPaddedGroupGrid(parent walk.Container) (group *walk.GroupBox, err error)
 		}
 	}()
 	layout := walk.NewGridLayout()
-	layout.SetMargins(walk.Margins{10, 5, 10, 5})
+	layout.SetMargins(walk.Margins{HNear: 10, VNear: 5, HFar: 10, VFar: 5})
 	layout.SetSpacing(0)
 	err = group.SetLayout(layout)
 	if err != nil {
 		return nil, err
 	}
-	spacer, err := walk.NewSpacerWithCfg(group, &walk.SpacerCfg{walk.GrowableHorz | walk.GreedyHorz, walk.Size{10, 0}, false})
+	spacer, err := walk.NewSpacerWithCfg(group, &walk.SpacerCfg{LayoutFlags: walk.GrowableHorz | walk.GreedyHorz, SizeHint: walk.Size{Width: 10, Height: 0}, GreedyLocallyOnly: false})
 	if err != nil {
 		return nil, err
 	}
-	layout.SetRange(spacer, walk.Rectangle{1, 0, 1, 1})
+	layout.SetRange(spacer, walk.Rectangle{X: 1, Y: 0, Width: 1, Height: 1})
 	return group, nil
 }
 
@@ -525,7 +525,7 @@ func NewConfView(parent walk.Container) (*ConfView, error) {
 	}
 	disposables.Add(cv)
 	vlayout := walk.NewVBoxLayout()
-	vlayout.SetMargins(walk.Margins{5, 0, 5, 0})
+	vlayout.SetMargins(walk.Margins{HNear: 5, VNear: 0, HFar: 5, VFar: 0})
 	cv.SetLayout(vlayout)
 	if cv.name, err = newPaddedGroupGrid(cv); err != nil {
 		return nil, err

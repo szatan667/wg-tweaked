@@ -35,7 +35,7 @@ func runAboutDialog(owner walk.Form) error {
 	}
 
 	vbl := walk.NewVBoxLayout()
-	vbl.SetMargins(walk.Margins{80, 20, 80, 20})
+	vbl.SetMargins(walk.Margins{HNear: 80, VNear: 20, HFar: 80, VFar: 20})
 	vbl.SetSpacing(10)
 
 	var disposables walk.Disposables

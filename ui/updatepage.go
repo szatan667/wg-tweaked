@@ -41,14 +41,14 @@ func NewUpdatePage() (*UpdatePage, error) {
 		return nil, err
 	}
 	instructions.SetText(l18n.Sprintf("An update to WireGuard is available. It is highly advisable to update without delay."))
-	instructions.SetMinMaxSize(walk.Size{1, 0}, walk.Size{0, 0})
+	instructions.SetMinMaxSize(walk.Size{Width: 1, Height: 0}, walk.Size{Width: 0, Height: 0})
 
 	status, err := walk.NewTextLabel(up)
 	if err != nil {
 		return nil, err
 	}
 	status.SetText(l18n.Sprintf("Status: Waiting for user"))
-	status.SetMinMaxSize(walk.Size{1, 0}, walk.Size{0, 0})
+	status.SetMinMaxSize(walk.Size{Width: 1, Height: 0}, walk.Size{Width: 0, Height: 0})
 
 	bar, err := walk.NewProgressBar(up)
 	if err != nil {

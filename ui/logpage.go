@@ -59,19 +59,19 @@ func NewLogPage() (*LogPage, error) {
 	lp.logView.AddDisposable(contextMenu)
 	copyAction := walk.NewAction()
 	copyAction.SetText(l18n.Sprintf("&Copy"))
-	copyAction.SetShortcut(walk.Shortcut{walk.ModControl, walk.KeyC})
+	copyAction.SetShortcut(walk.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyC})
 	copyAction.Triggered().Attach(lp.onCopy)
 	contextMenu.Actions().Add(copyAction)
 	lp.ShortcutActions().Add(copyAction)
 	selectAllAction := walk.NewAction()
 	selectAllAction.SetText(l18n.Sprintf("Select &all"))
-	selectAllAction.SetShortcut(walk.Shortcut{walk.ModControl, walk.KeyA})
+	selectAllAction.SetShortcut(walk.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyA})
 	selectAllAction.Triggered().Attach(lp.onSelectAll)
 	contextMenu.Actions().Add(selectAllAction)
 	lp.ShortcutActions().Add(selectAllAction)
 	saveAction := walk.NewAction()
 	saveAction.SetText(l18n.Sprintf("&Save to file…"))
-	saveAction.SetShortcut(walk.Shortcut{walk.ModControl, walk.KeyS})
+	saveAction.SetShortcut(walk.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyS})
 	saveAction.Triggered().Attach(lp.onSave)
 	contextMenu.Actions().Add(saveAction)
 	lp.ShortcutActions().Add(saveAction)
@@ -208,7 +208,7 @@ func newLogModel(lp *LogPage) *logModel {
 
 			case <-mdl.quit:
 				ticker.Stop()
-				break
+				//break
 			}
 		}
 	}()
