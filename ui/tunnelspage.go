@@ -3,7 +3,7 @@
  * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
  */
 
-package ui
+ package ui
 
 import (
 	"archive/zip"
