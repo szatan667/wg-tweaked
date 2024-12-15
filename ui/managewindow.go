@@ -50,7 +50,7 @@ func NewManageTunnelsWindow() (*ManageTunnelsWindow, error) {
 	var disposables walk.Disposables
 	defer disposables.Treat()
 
-	font, err := walk.NewFont("Segoe UI", 9, 0)
+	font, err := walk.NewFont("Segoe UI", 10, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +71,20 @@ func NewManageTunnelsWindow() (*ManageTunnelsWindow, error) {
 	}
 	mtw.SetTitle("WireGuard")
 	mtw.SetFont(font)
-	mtw.SetSize(walk.Size{675, 525})
-	mtw.SetMinMaxSize(walk.Size{500, 400}, walk.Size{0, 0})
+	var rect win.RECT
+	win.SystemParametersInfo(0x0030, 0, unsafe.Pointer(&rect), 0)
+	x := int(rect.Right - rect.Left) // Convert to int
+	y := int(rect.Bottom - rect.Top) // Convert to int
+	
+	mtw.SetBounds(walk.Rectangle{
+		X: x - 785,
+		Y: y - 590,
+		Width: 780,
+		Height: 585,
+	})
+	mtw.SetMinMaxSize(walk.Size{Width: 700, Height: 500}, walk.Size{Width: 0, Height: 0})
 	vlayout := walk.NewVBoxLayout()
-	vlayout.SetMargins(walk.Margins{5, 5, 5, 5})
+	vlayout.SetMargins(walk.Margins{HNear: 5, VNear: 5, HFar: 5, VFar: 5})
 	mtw.SetLayout(vlayout)
 	mtw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
 		// "Close to tray" instead of exiting application

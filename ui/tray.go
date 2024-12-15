@@ -223,7 +223,7 @@ func (tray *Tray) removeTunnelAction(tunnelName string) {
 }
 
 func (tray *Tray) rebalanceTunnelsMenu() {
-	if tray.tunnelsAreInBreakoutMenu && len(tray.tunnels) <= 10 {
+	if tray.tunnelsAreInBreakoutMenu && len(tray.tunnels) <= 25 {
 		menuAction := tray.ContextMenu().Actions().At(trayTunnelActionsOffset)
 		idx := 1
 		for _, name := range tray.sortedTunnels() {
@@ -233,7 +233,7 @@ func (tray *Tray) rebalanceTunnelsMenu() {
 		tray.ContextMenu().Actions().Remove(menuAction)
 		menuAction.Menu().Dispose()
 		tray.tunnelsAreInBreakoutMenu = false
-	} else if !tray.tunnelsAreInBreakoutMenu && len(tray.tunnels) > 10 {
+	} else if !tray.tunnelsAreInBreakoutMenu && len(tray.tunnels) > 25 {
 		menu, err := walk.NewMenu()
 		if err != nil {
 			return

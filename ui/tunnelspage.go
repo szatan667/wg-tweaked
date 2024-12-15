@@ -165,17 +165,29 @@ func (tp *TunnelsPage) CreateToolbar() error {
 	addMenuAction := walk.NewMenuAction(addMenu)
 	addMenuActionIcon, _ := loadSystemIcon("shell32", -258, 16)
 	addMenuAction.SetImage(addMenuActionIcon)
-	addMenuAction.SetText(l18n.Sprintf("Add Tunnel"))
+	addMenuAction.SetText(l18n.Sprintf("Add"))
 	addMenuAction.SetToolTip(importAction.Text())
 	addMenuAction.Triggered().Attach(tp.onImport)
 	tp.listToolbar.Actions().Add(addMenuAction)
 
 	tp.listToolbar.Actions().Add(walk.NewSeparatorAction())
 
+	editButtonAction := walk.NewAction()
+	editButtonAction.SetText("Edit")
+	editButtonAction.SetToolTip("Edit selected tunnel")
+	addAction.SetShortcut(walk.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyE})
+	editButtonActionIcon, _ := loadSystemIcon("shell32", -157, 16)
+	editButtonAction.SetImage(editButtonActionIcon)
+	editButtonAction.Triggered().Attach(tp.onEditTunnel)
+	tp.listToolbar.Actions().Add(editButtonAction)
+
+	tp.listToolbar.Actions().Add(walk.NewSeparatorAction())
+
 	deleteAction := walk.NewAction()
 	deleteActionIcon, _ := loadSystemIcon("shell32", -240, 16)
 	deleteAction.SetImage(deleteActionIcon)
-	deleteAction.SetShortcut(walk.Shortcut{0, walk.KeyDelete})
+	deleteAction.SetShortcut(walk.Shortcut{Modifiers: 0, Key: walk.KeyDelete})
+	deleteAction.SetText("Delete")
 	deleteAction.SetToolTip(l18n.Sprintf("Remove selected tunnel(s)"))
 	deleteAction.Triggered().Attach(tp.onDelete)
 	tp.listToolbar.Actions().Add(deleteAction)
@@ -184,13 +196,14 @@ func (tp *TunnelsPage) CreateToolbar() error {
 	exportAction := walk.NewAction()
 	exportActionIcon, _ := loadSystemIcon("imageres", -174, 16)
 	exportAction.SetImage(exportActionIcon)
+	exportAction.SetText("Export")
 	exportAction.SetToolTip(l18n.Sprintf("Export all tunnels to zip"))
 	exportAction.Triggered().Attach(tp.onExportTunnels)
 	tp.listToolbar.Actions().Add(exportAction)
 
 	fixContainerWidthToToolbarWidth := func() {
-		toolbarWidth := tp.listToolbar.SizeHint().Width
-		tp.listContainer.SetMinMaxSizePixels(walk.Size{toolbarWidth, 0}, walk.Size{toolbarWidth, 0})
+		toolbarWidth := tp.listToolbar.SizeHint().Width - 10
+		tp.listContainer.SetMinMaxSizePixels(walk.Size{Width: toolbarWidth, Height: 0}, walk.Size{toolbarWidth, 0})
 	}
 	fixContainerWidthToToolbarWidth()
 	tp.listToolbar.SizeChanged().Attach(fixContainerWidthToToolbarWidth)
