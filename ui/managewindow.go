@@ -80,7 +80,7 @@ func NewManageTunnelsWindow() (*ManageTunnelsWindow, error) {
 		X: x - 785,
 		Y: y - 590,
 		Width: 780,
-		Height: 585,
+		Height: 590,
 	})
 	mtw.SetMinMaxSize(walk.Size{Width: 700, Height: 500}, walk.Size{Width: 0, Height: 0})
 	vlayout := walk.NewVBoxLayout()

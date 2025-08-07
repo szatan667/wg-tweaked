@@ -3,7 +3,7 @@
  * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
  */
 
- package ui
+package ui
 
 import (
 	"archive/zip"
@@ -219,7 +219,7 @@ func (tp *TunnelsPage) CreateToolbar() error {
 	toggleAction.Triggered().Attach(tp.onTunnelsViewItemActivated)
 	contextMenu.Actions().Add(toggleAction)
 	contextMenu.Actions().Add(walk.NewSeparatorAction())
-	
+
 	editAction := walk.NewAction()
 	editAction.SetText(l18n.Sprintf("Edit &selected tunnel…"))
 	editAction.SetShortcut(walk.Shortcut{Modifiers: walk.ModControl, Key: walk.KeyE})
@@ -227,7 +227,6 @@ func (tp *TunnelsPage) CreateToolbar() error {
 	editAction.Triggered().Attach(tp.onEditTunnel)
 	contextMenu.Actions().Add(editAction)
 	tp.ShortcutActions().Add(editAction)
-
 
 	deleteAction2 := walk.NewAction()
 	deleteAction2.SetText(l18n.Sprintf("&Remove selected tunnel(s)"))
@@ -456,11 +455,12 @@ func (tp *TunnelsPage) onTunnelsViewItemActivated() {
 		oldState, err := tp.listView.CurrentTunnel().Toggle()
 		if err != nil {
 			tp.Synchronize(func() {
-				if oldState == manager.TunnelUnknown {
+				switch oldState {
+				case manager.TunnelUnknown:
 					showErrorCustom(tp.Form(), l18n.Sprintf("Failed to determine tunnel state"), err.Error())
-				} else if oldState == manager.TunnelStopped {
+				case manager.TunnelStopped:
 					showErrorCustom(tp.Form(), l18n.Sprintf("Failed to activate tunnel"), err.Error())
-				} else if oldState == manager.TunnelStarted {
+				case manager.TunnelStarted:
 					showErrorCustom(tp.Form(), l18n.Sprintf("Failed to deactivate tunnel"), err.Error())
 				}
 			})

@@ -93,14 +93,14 @@ func NameFromPath(path string) (string, error) {
 		name = strings.TrimSuffix(name, configFileUnencryptedSuffix)
 	}
 	if !TunnelNameIsValid(name) {
-		return "", errors.New("Tunnel name is not valid")
+		return "", errors.New("tunnel name is not valid")
 	}
 	return name, nil
 }
 
 func (config *Config) Save(overwrite bool) error {
 	if !TunnelNameIsValid(config.Name) {
-		return errors.New("Tunnel name is not valid")
+		return errors.New("tunnel name is not valid")
 	}
 	configFileDir, err := tunnelConfigurationsDirectory()
 	if err != nil {
@@ -117,7 +117,7 @@ func (config *Config) Save(overwrite bool) error {
 
 func (config *Config) Path() (string, error) {
 	if !TunnelNameIsValid(config.Name) {
-		return "", errors.New("Tunnel name is not valid")
+		return "", errors.New("tunnel name is not valid")
 	}
 	configFileDir, err := tunnelConfigurationsDirectory()
 	if err != nil {
@@ -128,7 +128,7 @@ func (config *Config) Path() (string, error) {
 
 func DeleteName(name string) error {
 	if !TunnelNameIsValid(name) {
-		return errors.New("Tunnel name is not valid")
+		return errors.New("tunnel name is not valid")
 	}
 	configFileDir, err := tunnelConfigurationsDirectory()
 	if err != nil {

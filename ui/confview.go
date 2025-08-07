@@ -18,6 +18,9 @@ import (
 	"golang.zx2c4.com/wireguard/windows/manager"
 )
 
+var rp conf.Bytes
+var tp conf.Bytes
+
 type widgetsLine interface {
 	widgets() (walk.Widget, walk.Widget)
 }
@@ -186,7 +189,7 @@ func newLabelTextLine(fieldName string, parent walk.Container) (*labelTextLine, 
 	lt.label.SetTextAlignment(walk.AlignHFarVNear)
 	lt.label.SetVisible(false)
 
-	if lt.text, err = walk.NewTextEdit(parent); err != nil {
+	if lt.text, err = walk.NewTextEditWithStyle(parent, win.ES_MULTILINE); err != nil {
 		return nil, err
 	}
 	disposables.Add(lt.text)
@@ -442,6 +445,7 @@ func (pv *peerView) widgetsLines() []widgetsLine {
 }
 
 func (pv *peerView) apply(c *conf.Peer) {
+
 	if IsAdmin {
 		pv.publicKey.show(c.PublicKey.String())
 	} else {
@@ -483,10 +487,18 @@ func (pv *peerView) apply(c *conf.Peer) {
 	}
 
 	if c.RxBytes > 0 || c.TxBytes > 0 {
-		pv.transfer.show(l18n.Sprintf("%s received, %s sent", c.RxBytes.String(), c.TxBytes.String()))
+		pv.transfer.show(l18n.Sprintf(
+			"↑ %s, %s \r\n↓ %s, %s",
+			c.TxBytes.String(),
+			(c.TxBytes - tp).SpeedString(),
+			c.RxBytes.String(),
+			(c.RxBytes - rp).SpeedString()))
 	} else {
 		pv.transfer.hide()
 	}
+
+	rp = c.RxBytes
+	tp = c.TxBytes
 }
 
 func newPaddedGroupGrid(parent walk.Container) (group *walk.GroupBox, err error) {
@@ -593,11 +605,12 @@ func (cv *ConfView) onToggleActiveClicked() {
 		oldState, err := cv.tunnel.Toggle()
 		if err != nil {
 			cv.Synchronize(func() {
-				if oldState == manager.TunnelUnknown {
+				switch oldState {
+				case manager.TunnelUnknown:
 					showErrorCustom(cv.Form(), l18n.Sprintf("Failed to determine tunnel state"), err.Error())
-				} else if oldState == manager.TunnelStopped {
+				case manager.TunnelStopped:
 					showErrorCustom(cv.Form(), l18n.Sprintf("Failed to activate tunnel"), err.Error())
-				} else if oldState == manager.TunnelStarted {
+				case manager.TunnelStarted:
 					showErrorCustom(cv.Form(), l18n.Sprintf("Failed to deactivate tunnel"), err.Error())
 				}
 			})

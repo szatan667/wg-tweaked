@@ -3,7 +3,7 @@
  * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
  */
 
- package ui
+package ui
 
 import (
 	"sort"
@@ -171,11 +171,12 @@ func (tray *Tray) addTunnelAction(tunnel *manager.Tunnel) {
 					raise(tray.mtw.Handle())
 					tray.mtw.tunnelsPage.listView.selectTunnel(tclosure.Name)
 					tray.mtw.tabs.SetCurrentIndex(0)
-					if oldState == manager.TunnelUnknown {
+					switch oldState {
+					case manager.TunnelUnknown:
 						showErrorCustom(tray.mtw, l18n.Sprintf("Failed to determine tunnel state"), err.Error())
-					} else if oldState == manager.TunnelStopped {
+					case manager.TunnelStopped:
 						showErrorCustom(tray.mtw, l18n.Sprintf("Failed to activate tunnel"), err.Error())
-					} else if oldState == manager.TunnelStarted {
+					case manager.TunnelStarted:
 						showErrorCustom(tray.mtw, l18n.Sprintf("Failed to deactivate tunnel"), err.Error())
 					}
 				})

@@ -102,10 +102,10 @@ func RootDirectory(create bool) (string, error) {
 		return "", err
 	}
 	if fileInfo.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY == 0 {
-		return "", errors.New("Data directory is actually a file")
+		return "", errors.New("data directory is actually a file")
 	}
 	if fileInfo.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		return "", errors.New("Data directory is reparse point")
+		return "", errors.New("data directory is reparse point")
 	}
 	buf := make([]uint16, windows.MAX_PATH+4)
 	for {
@@ -119,7 +119,7 @@ func RootDirectory(create bool) (string, error) {
 		buf = make([]uint16, bufLen)
 	}
 	if !strings.EqualFold(`\\?\`+data, windows.UTF16ToString(buf[:])) {
-		return "", errors.New("Data directory jumped to unexpected location")
+		return "", errors.New("data directory jumped to unexpected location")
 	}
 	err = windows.SetKernelObjectSecurity(dataHandle, windows.DACL_SECURITY_INFORMATION|windows.GROUP_SECURITY_INFORMATION|windows.OWNER_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, dataDirectorySd)
 	if err != nil {

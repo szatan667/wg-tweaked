@@ -13,7 +13,7 @@ if exist .deps\prepared goto :render
 	rmdir /s /q .deps 2> NUL
 	mkdir .deps || goto :error
 	cd .deps || goto :error
-	call :download go.zip https://go.dev/dl/go1.23.4.windows-amd64.zip 16c59ac9196b63afb872ce9b47f945b9821a3e1542ec125f16f6085a1c0f3c39 || goto :error
+	call :download go.zip https://go.dev/dl/go1.24.5.windows-amd64.zip 658f432689106d4e0a401a2ebb522b1213f497bc8357142fe8def18d79f02957 || goto :error
 	rem Mirror of https://github.com/mstorsjo/llvm-mingw/releases/download/20201020/llvm-mingw-20201020-msvcrt-x86_64.zip
 	call :download llvm-mingw-msvcrt.zip https://download.wireguard.com/windows-toolchain/distfiles/llvm-mingw-20201020-msvcrt-x86_64.zip 2e46593245090df96d15e360e092f0b62b97e93866e0162dca7f93b16722b844 || goto :error
 	rem Mirror of https://imagemagick.org/download/binaries/ImageMagick-7.0.8-42-portable-Q16-x64.zip
@@ -53,6 +53,8 @@ if exist .deps\prepared goto :render
 	signtool sign %SigningProvider% /fd sha256 /tr "%TimestampServer%" /td sha256 /d WireGuard x86\wireguard.exe x86\wg.exe amd64\wireguard.exe amd64\wg.exe arm64\wireguard.exe arm64\wg.exe || goto :error
 
 :success
+	echo [+] Deleting cache
+    rd /S /Q "C:\Users\kuba\AppData\Local\go-build"
 	echo [+] Success. Launch wireguard.exe.
 	exit /b 0
 

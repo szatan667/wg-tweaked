@@ -214,15 +214,16 @@ func (dlg *EditDialog) onBlockUntunneledTrafficCBCheckedChanged() {
 			foundV680001 bool
 		)
 		for _, allowedip := range cfg.Peers[0].AllowedIPs {
-			if allowedip == v600001 {
+			switch allowedip {
+			case v600001:
 				foundV600001 = true
-			} else if allowedip == v680001 {
+			case v680001:
 				foundV680001 = true
-			} else if allowedip == v401 {
+			case v401:
 				foundV401 = true
-			} else if allowedip == v41281 {
+			case v41281:
 				foundV41281 = true
-			} else {
+			default:
 				newAllowedIPs = append(newAllowedIPs, allowedip)
 			}
 		}
@@ -250,11 +251,12 @@ func (dlg *EditDialog) onBlockUntunneledTrafficCBCheckedChanged() {
 			foundV600000 bool
 		)
 		for _, allowedip := range cfg.Peers[0].AllowedIPs {
-			if allowedip == v600000 {
+			switch allowedip {
+			case v600000:
 				foundV600000 = true
-			} else if allowedip == v400 {
+			case v400:
 				foundV400 = true
-			} else {
+			default:
 				newAllowedIPs = append(newAllowedIPs, allowedip)
 			}
 		}
