@@ -72,4 +72,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	for _, lang := range langs {
+		err = os.Rename(filepath.Join("locales", lang, "out.gotext.json"),
+			filepath.Join("locales", lang, "messages.gotext.json"))
+		if err != nil {
+			panic(err)
+		}
+	}
 }
