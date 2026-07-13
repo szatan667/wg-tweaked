@@ -166,10 +166,20 @@ func FromWgQuick(s, name string) (*Config, error) {
 	conf := Config{Name: name}
 	sawPrivateKey := false
 	var peer *Peer
+	var pendingComments []string
 	for _, line := range lines {
-		stripped, _, _ := strings.Cut(line, "#")
-		stripped = strings.TrimSpace(stripped)
+		code, after, hasComment := strings.Cut(line, "#")
+		comment := ""
+		if hasComment {
+			comment = "#" + strings.TrimRight(after, " \t\r")
+		}
+		stripped := strings.TrimSpace(code)
 		if len(stripped) == 0 {
+			if len(comment) != 0 {
+				pendingComments = append(pendingComments, comment)
+			} else {
+				pendingComments = append(pendingComments, "")
+			}
 			continue
 		}
 		key, val, hasValue := strings.Cut(stripped, "=")
@@ -177,11 +187,23 @@ func FromWgQuick(s, name string) (*Config, error) {
 		if key == "[interface]" && !hasValue {
 			conf.maybeAddPeer(peer)
 			parserState = inInterfaceSection
+			h := &conf.Interface.Comments.Header
+			h.Before = append(h.Before, pendingComments...)
+			if len(comment) != 0 {
+				if len(h.Suffix) == 0 {
+					h.Suffix = comment
+				} else {
+					h.Suffix += " " + comment
+				}
+			}
+			pendingComments = nil
 			continue
 		}
 		if key == "[peer]" && !hasValue {
 			conf.maybeAddPeer(peer)
 			peer = &Peer{}
+			peer.Comments.Header = Comments{Before: pendingComments, Suffix: comment}
+			pendingComments = nil
 			parserState = inPeerSection
 			continue
 		}
@@ -194,11 +216,32 @@ func FromWgQuick(s, name string) (*Config, error) {
 		switch key {
 		case "preup", "postup", "predown", "postdown":
 			_, val, _ = strings.Cut(line, "=")
+			comment = ""
 		}
 		val = strings.TrimSpace(val)
 		if len(val) == 0 {
 			return nil, &ParseError{l18n.Sprintf("Key must have a value"), stripped}
 		}
+		section := &conf.Interface.Comments
+		if parserState == inPeerSection {
+			section = &peer.Comments
+		}
+		if len(pendingComments) != 0 || len(comment) != 0 {
+			if section.Lines == nil {
+				section.Lines = make(map[string]Comments)
+			}
+			c := section.Lines[key]
+			c.Before = append(c.Before, pendingComments...)
+			if len(comment) != 0 {
+				if len(c.Suffix) == 0 {
+					c.Suffix = comment
+				} else {
+					c.Suffix += " " + comment
+				}
+			}
+			section.Lines[key] = c
+		}
+		pendingComments = nil
 		if parserState == inInterfaceSection {
 			switch key {
 			case "privatekey":
@@ -306,6 +349,46 @@ func FromWgQuick(s, name string) (*Config, error) {
 		}
 	}
 	conf.maybeAddPeer(peer)
+
+	pruneComments := func(run []string, dropLeading, dropTrailing bool) []string {
+		var out []string
+		for _, line := range run {
+			if line == "" && len(out) != 0 && out[len(out)-1] == "" {
+				continue
+			}
+			out = append(out, line)
+		}
+		if dropLeading && len(out) != 0 && out[0] == "" {
+			out = out[1:]
+		}
+		if dropTrailing && len(out) != 0 && out[len(out)-1] == "" {
+			out = out[:len(out)-1]
+		}
+		if len(out) == 0 || len(out) == 1 && out[0] == "" {
+			return nil
+		}
+		return out
+	}
+	pruneSectionComments := func(s *SectionComments) {
+		s.Header.Before = pruneComments(s.Header.Before, true, false)
+		for key, c := range s.Lines {
+			c.Before = pruneComments(c.Before, false, false)
+			if len(c.Before) == 0 && len(c.Suffix) == 0 {
+				delete(s.Lines, key)
+			} else {
+				s.Lines[key] = c
+			}
+		}
+		if len(s.Lines) == 0 {
+			s.Lines = nil
+		}
+	}
+
+	conf.TrailingComments = pruneComments(pendingComments, false, true)
+	pruneSectionComments(&conf.Interface.Comments)
+	for i := range conf.Peers {
+		pruneSectionComments(&conf.Peers[i].Comments)
+	}
 
 	if !sawPrivateKey {
 		return nil, &ParseError{l18n.Sprintf("An interface must have a private key"), l18n.Sprintf("[none specified]")}

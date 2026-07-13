@@ -37,6 +37,8 @@ type Config struct {
 	Name      string
 	Interface Interface
 	Peers     []Peer
+
+	TrailingComments []string
 }
 
 type Interface struct {
@@ -51,6 +53,8 @@ type Interface struct {
 	PreDown    string
 	PostDown   string
 	TableOff   bool
+
+	Comments SectionComments
 }
 
 type Peer struct {
@@ -63,6 +67,18 @@ type Peer struct {
 	RxBytes           Bytes
 	TxBytes           Bytes
 	LastHandshakeTime HandshakeTime
+
+	Comments SectionComments
+}
+
+type Comments struct {
+	Before []string
+	Suffix string
+}
+
+type SectionComments struct {
+	Header Comments
+	Lines  map[string]Comments
 }
 
 func (conf *Config) IntersectsWith(other *Config) bool {
@@ -247,9 +263,12 @@ func (conf *Config) Redact() {
 	conf.Interface.PostUp = ""
 	conf.Interface.PreDown = ""
 	conf.Interface.PostDown = ""
+	conf.Interface.Comments = SectionComments{}
 	for i := range conf.Peers {
 		conf.Peers[i].PublicKey = Key{}
 		binary.LittleEndian.PutUint64(conf.Peers[i].PublicKey[:8], uint64(i))
 		conf.Peers[i].PresharedKey = Key{}
+		conf.Peers[i].Comments = SectionComments{}
 	}
+	conf.TrailingComments = nil
 }

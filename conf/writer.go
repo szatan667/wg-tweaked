@@ -18,20 +18,37 @@ import (
 
 func (conf *Config) ToWgQuick() string {
 	var output strings.Builder
-	output.WriteString("[Interface]\n")
 
-	output.WriteString(fmt.Sprintf("PrivateKey = %s\n", conf.Interface.PrivateKey.String()))
-
-	if conf.Interface.ListenPort > 0 {
-		output.WriteString(fmt.Sprintf("ListenPort = %d\n", conf.Interface.ListenPort))
+	writeLine := func(c Comments, line string) {
+		for _, before := range c.Before {
+			output.WriteString(before)
+			output.WriteByte('\n')
+		}
+		output.WriteString(line)
+		if len(c.Suffix) != 0 {
+			output.WriteByte(' ')
+			output.WriteString(c.Suffix)
+		}
+		output.WriteByte('\n')
 	}
+	writeField := func(comments SectionComments, key string, present bool, value any) {
+		c := comments.Lines[strings.ToLower(key)]
+		if !present && len(c.Before) == 0 && len(c.Suffix) == 0 {
+			return
+		}
+		writeLine(c, key+" = "+fmt.Sprint(value))
+	}
+
+	writeLine(conf.Interface.Comments.Header, "[Interface]")
+	writeField(conf.Interface.Comments, "PrivateKey", true, conf.Interface.PrivateKey.String())
+	writeField(conf.Interface.Comments, "ListenPort", conf.Interface.ListenPort > 0, conf.Interface.ListenPort)
 
 	if len(conf.Interface.Addresses) > 0 {
 		addrStrings := make([]string, len(conf.Interface.Addresses))
 		for i, address := range conf.Interface.Addresses {
 			addrStrings[i] = address.String()
 		}
-		output.WriteString(fmt.Sprintf("Address = %s\n", strings.Join(addrStrings[:], ", ")))
+		writeField(conf.Interface.Comments, "Address", true, strings.Join(addrStrings, ", "))
 	}
 
 	if len(conf.Interface.DNS)+len(conf.Interface.DNSSearch) > 0 {
@@ -40,53 +57,42 @@ func (conf *Config) ToWgQuick() string {
 			addrStrings = append(addrStrings, address.String())
 		}
 		addrStrings = append(addrStrings, conf.Interface.DNSSearch...)
-		output.WriteString(fmt.Sprintf("DNS = %s\n", strings.Join(addrStrings[:], ", ")))
+		writeField(conf.Interface.Comments, "DNS", true, strings.Join(addrStrings, ", "))
 	}
 
-	if conf.Interface.MTU > 0 {
-		output.WriteString(fmt.Sprintf("MTU = %d\n", conf.Interface.MTU))
-	}
+	writeField(conf.Interface.Comments, "MTU", conf.Interface.MTU > 0, conf.Interface.MTU)
+	writeField(conf.Interface.Comments, "PreUp", len(conf.Interface.PreUp) > 0, conf.Interface.PreUp)
+	writeField(conf.Interface.Comments, "PostUp", len(conf.Interface.PostUp) > 0, conf.Interface.PostUp)
+	writeField(conf.Interface.Comments, "PreDown", len(conf.Interface.PreDown) > 0, conf.Interface.PreDown)
+	writeField(conf.Interface.Comments, "PostDown", len(conf.Interface.PostDown) > 0, conf.Interface.PostDown)
 
-	if len(conf.Interface.PreUp) > 0 {
-		output.WriteString(fmt.Sprintf("PreUp = %s\n", conf.Interface.PreUp))
-	}
-	if len(conf.Interface.PostUp) > 0 {
-		output.WriteString(fmt.Sprintf("PostUp = %s\n", conf.Interface.PostUp))
-	}
-	if len(conf.Interface.PreDown) > 0 {
-		output.WriteString(fmt.Sprintf("PreDown = %s\n", conf.Interface.PreDown))
-	}
-	if len(conf.Interface.PostDown) > 0 {
-		output.WriteString(fmt.Sprintf("PostDown = %s\n", conf.Interface.PostDown))
-	}
+	table := "auto"
 	if conf.Interface.TableOff {
-		output.WriteString("Table = off\n")
+		table = "off"
 	}
+	writeField(conf.Interface.Comments, "Table", conf.Interface.TableOff, table)
 
 	for _, peer := range conf.Peers {
-		output.WriteString("\n[Peer]\n")
-
-		output.WriteString(fmt.Sprintf("PublicKey = %s\n", peer.PublicKey.String()))
-
-		if !peer.PresharedKey.IsZero() {
-			output.WriteString(fmt.Sprintf("PresharedKey = %s\n", peer.PresharedKey.String()))
-		}
+		output.WriteByte('\n')
+		writeLine(peer.Comments.Header, "[Peer]")
+		writeField(peer.Comments, "PublicKey", true, peer.PublicKey.String())
+		writeField(peer.Comments, "PresharedKey", !peer.PresharedKey.IsZero(), peer.PresharedKey.String())
 
 		if len(peer.AllowedIPs) > 0 {
 			addrStrings := make([]string, len(peer.AllowedIPs))
 			for i, address := range peer.AllowedIPs {
 				addrStrings[i] = address.String()
 			}
-			output.WriteString(fmt.Sprintf("AllowedIPs = %s\n", strings.Join(addrStrings[:], ", ")))
+			writeField(peer.Comments, "AllowedIPs", true, strings.Join(addrStrings, ", "))
 		}
 
-		if !peer.Endpoint.IsEmpty() {
-			output.WriteString(fmt.Sprintf("Endpoint = %s\n", peer.Endpoint.String()))
-		}
+		writeField(peer.Comments, "Endpoint", !peer.Endpoint.IsEmpty(), peer.Endpoint.String())
+		writeField(peer.Comments, "PersistentKeepalive", peer.PersistentKeepalive > 0, peer.PersistentKeepalive)
+	}
 
-		if peer.PersistentKeepalive > 0 {
-			output.WriteString(fmt.Sprintf("PersistentKeepalive = %d\n", peer.PersistentKeepalive))
-		}
+	for _, comment := range conf.TrailingComments {
+		output.WriteString(comment)
+		output.WriteByte('\n')
 	}
 	return output.String()
 }
