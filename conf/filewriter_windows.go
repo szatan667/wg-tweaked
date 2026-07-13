@@ -64,7 +64,11 @@ func writeLockedDownFile(destination string, overwrite bool, contents []byte) er
 		deleteIt()
 		return windows.ERROR_IO_INCOMPLETE
 	}
-	windows.FlushFileBuffers(handle)
+	err = windows.FlushFileBuffers(handle)
+	if err != nil {
+		deleteIt()
+		return err
+	}
 	fileRenameInfo := &struct {
 		replaceIfExists byte
 		rootDirectory   windows.Handle
