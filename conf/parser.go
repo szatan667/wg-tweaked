@@ -53,7 +53,7 @@ func parseEndpoint(s string) (*Endpoint, error) {
 		return nil, err
 	}
 	hostColon := strings.IndexByte(host, ':')
-	if host[0] == '[' || host[len(host)-1] == ']' || hostColon > 0 {
+	if host[0] == '[' || host[len(host)-1] == ']' || hostColon >= 0 {
 		err := &ParseError{l18n.Sprintf("Brackets must contain an IPv6 address"), host}
 		if len(host) > 3 && host[0] == '[' && host[len(host)-1] == ']' && hostColon > 0 {
 			end := len(host) - 1

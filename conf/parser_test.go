@@ -126,4 +126,8 @@ func TestParseEndpoint(t *testing.T) {
 	if err == nil {
 		t.Error("Error was expected")
 	}
+	_, err = parseEndpoint("::0")
+	if err == nil {
+		t.Error("Error was expected")
+	}
 }
