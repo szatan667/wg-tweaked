@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package version
@@ -8,6 +8,7 @@ package version
 import (
 	"errors"
 	"os"
+	"slices"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -32,12 +33,7 @@ func IsRunningOfficialVersion() bool {
 	if err != nil {
 		return false
 	}
-	for _, name := range names {
-		if name == officialCommonName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(names, officialCommonName)
 }
 
 func IsRunningEVSigned() bool {
@@ -50,12 +46,7 @@ func IsRunningEVSigned() bool {
 	if err != nil {
 		return false
 	}
-	for _, policy := range policies {
-		if policy == evPolicyOid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(policies, evPolicyOid)
 }
 
 func extractCertificateNames(path string) ([]string, error) {
@@ -136,13 +127,13 @@ func extractCertificatePolicies(path, oid string) ([]string, error) {
 		var decodedLen uint32
 		err = windows.CryptDecodeObject(windows.X509_ASN_ENCODING|windows.PKCS_7_ASN_ENCODING, ext.ObjId, ext.Value.Data, ext.Value.Size, 0, nil, &decodedLen)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		bytes := make([]byte, decodedLen)
 		certPoliciesInfo := (*windows.CertPoliciesInfo)(unsafe.Pointer(&bytes[0]))
 		err = windows.CryptDecodeObject(windows.X509_ASN_ENCODING|windows.PKCS_7_ASN_ENCODING, ext.ObjId, ext.Value.Data, ext.Value.Size, 0, unsafe.Pointer(&bytes[0]), &decodedLen)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		for i := uintptr(0); i < uintptr(certPoliciesInfo.Count); i++ {
 			cp := (*windows.CertPolicyInfo)(unsafe.Add(unsafe.Pointer(certPoliciesInfo.PolicyInfos), i*unsafe.Sizeof(*certPoliciesInfo.PolicyInfos)))

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package conf
@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -36,6 +37,8 @@ type Config struct {
 	Name      string
 	Interface Interface
 	Peers     []Peer
+
+	TrailingComments []string
 }
 
 type Interface struct {
@@ -50,6 +53,8 @@ type Interface struct {
 	PreDown    string
 	PostDown   string
 	TableOff   bool
+
+	Comments SectionComments
 }
 
 type Peer struct {
@@ -62,6 +67,18 @@ type Peer struct {
 	RxBytes           Bytes
 	TxBytes           Bytes
 	LastHandshakeTime HandshakeTime
+
+	Comments SectionComments
+}
+
+type Comments struct {
+	Before []string
+	Suffix string
+}
+
+type SectionComments struct {
+	Header Comments
+	Lines  map[string]Comments
 }
 
 func (conf *Config) IntersectsWith(other *Config) bool {
@@ -237,7 +254,8 @@ func (conf *Config) DeduplicateNetworkEntries() {
 	}
 	conf.Interface.DNS = conf.Interface.DNS[:i]
 
-	for _, peer := range conf.Peers {
+	for peerIdx := range conf.Peers {
+		peer := &conf.Peers[peerIdx]
 		m = make(map[string]bool, len(peer.AllowedIPs))
 		i = 0
 		for _, addr := range peer.AllowedIPs {
@@ -255,8 +273,16 @@ func (conf *Config) DeduplicateNetworkEntries() {
 
 func (conf *Config) Redact() {
 	conf.Interface.PrivateKey = Key{}
+	conf.Interface.PreUp = ""
+	conf.Interface.PostUp = ""
+	conf.Interface.PreDown = ""
+	conf.Interface.PostDown = ""
+	conf.Interface.Comments = SectionComments{}
 	for i := range conf.Peers {
 		conf.Peers[i].PublicKey = Key{}
+		binary.LittleEndian.PutUint64(conf.Peers[i].PublicKey[:8], uint64(i))
 		conf.Peers[i].PresharedKey = Key{}
+		conf.Peers[i].Comments = SectionComments{}
 	}
+	conf.TrailingComments = nil
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2020-2022 Jason A. Donenfeld. All Rights Reserved.
+ * Copyright (C) 2020-2026 Jason A. Donenfeld. All Rights Reserved.
  */
 
 #include <windows.h>
@@ -10,7 +10,6 @@
 #include <ntsecapi.h>
 #include <sddl.h>
 #include <winhttp.h>
-#include <wintrust.h>
 #include <softpub.h>
 #include <msi.h>
 #include <stdio.h>
@@ -23,10 +22,11 @@
 #include "constants.h"
 
 static char msi_filename[MAX_PATH];
-static volatile bool msi_filename_is_set, prompts = true;
+static volatile bool msi_filename_is_set;
 static volatile size_t g_current, g_total;
 static HWND progress;
 static HANDLE filehandle = INVALID_HANDLE_VALUE;
+static bool no_prompts;
 
 static wchar_t *L(const char *a)
 {
@@ -73,7 +73,7 @@ static void set_progress(HWND progress, size_t current, size_t total)
 
 static DWORD __stdcall download_thread(void *param)
 {
-	DWORD ret = 1, bytes_read, bytes_written, enable_http2 = WINHTTP_PROTOCOL_FLAG_HTTP2;
+	DWORD ret = 1, bytes_read, bytes_written, enable_http;
 	HINTERNET session = NULL, connection = NULL, request = NULL;
 	uint8_t hash[32], computed_hash[32], buf[512 * 1024];
 	char download_path[MAX_FILENAME_LEN + sizeof(msi_path)], random_filename[65];
@@ -82,15 +82,6 @@ static DWORD __stdcall download_thread(void *param)
 	const char *arch;
 	struct blake2b256_state hasher;
 	SECURITY_ATTRIBUTES security_attributes = { .nLength = sizeof(security_attributes) };
-	WINTRUST_FILE_INFO wintrust_fileinfo = { .cbStruct = sizeof(wintrust_fileinfo) };
-	WINTRUST_DATA wintrust_data = {
-		.cbStruct = sizeof(wintrust_data),
-		.dwUIChoice = WTD_UI_NONE,
-		.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN,
-		.dwUnionChoice = WTD_CHOICE_FILE,
-		.dwStateAction = WTD_STATEACTION_VERIFY,
-		.pFile = &wintrust_fileinfo
-	};
 
 	(void)param;
 
@@ -110,16 +101,11 @@ static DWORD __stdcall download_thread(void *param)
 		goto out;
 
 	set_status(progress, "connecting to server");
-	session = WinHttpOpen(L(useragent()), is_win7() ? WINHTTP_ACCESS_TYPE_DEFAULT_PROXY : WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, NULL, NULL, 0);
+	session = WinHttpOpen(L(useragent()), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, NULL, NULL, 0);
 	if (!session)
 		goto out;
-	WinHttpSetOption(session, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &enable_http2, sizeof(enable_http2)); // Don't check return value, in case of old Windows
-	if (is_win8dotzero_or_below()) {
-		DWORD enable_tls12 = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
-		if (!WinHttpSetOption(session, WINHTTP_OPTION_SECURE_PROTOCOLS, &enable_tls12, sizeof(enable_tls12)))
-			goto out;
-	}
-
+	enable_http = WINHTTP_PROTOCOL_FLAG_HTTP2;
+	WinHttpSetOption(session, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &enable_http, sizeof(enable_http));
 	connection = WinHttpConnect(session, L(server), port, 0);
 	if (!connection)
 		goto out;
@@ -179,22 +165,14 @@ static DWORD __stdcall download_thread(void *param)
 			goto out;
 		set_progress(progress, current_bytes, total_bytes);
 	}
-
-	set_status(progress, "verifying installer");
 	blake2b256_final(&hasher, computed_hash);
 	if (memcmp(hash, computed_hash, sizeof(hash)))
-		goto out;
-	CloseHandle(filehandle); //TODO: I wish this wasn't required.
-	filehandle = INVALID_HANDLE_VALUE;
-	wintrust_fileinfo.pcwszFilePath = L(msi_filename);
-	ret = WinVerifyTrustEx(INVALID_HANDLE_VALUE, &(GUID)WINTRUST_ACTION_GENERIC_VERIFY_V2, &wintrust_data);
-	wintrust_data.dwStateAction = WTD_STATEACTION_CLOSE;
-	WinVerifyTrustEx(INVALID_HANDLE_VALUE, &(GUID)WINTRUST_ACTION_GENERIC_VERIFY_V2, &wintrust_data);
-	if (ret)
 		goto out;
 
 	set_status(progress, "launching installer");
 	ShowWindow(progress, SW_HIDE);
+	CloseHandle(filehandle); //TODO: I wish this wasn't required.
+	filehandle = INVALID_HANDLE_VALUE;
 	ret = MsiInstallProductA(msi_filename, NULL);
 	ret = ret == ERROR_INSTALL_USEREXIT ? ERROR_SUCCESS : ret;
 
@@ -208,7 +186,7 @@ out:
 	if (security_attributes.lpSecurityDescriptor)
 		LocalFree(security_attributes.lpSecurityDescriptor);
 
-	if (ret && prompts) {
+	if (ret && !no_prompts) {
 		ShowWindow(progress, SW_SHOWDEFAULT);
 		if (MessageBoxA(progress, "Something went wrong when downloading the WireGuard installer. Would you like to open your web browser to the MSI download page?", "Download Error", MB_YESNO | MB_ICONWARNING) == IDYES)
 			ShellExecuteA(progress, NULL, "https://" server msi_path, NULL, NULL, SW_SHOWNORMAL);
@@ -227,7 +205,6 @@ static int cleanup(void)
 		filehandle = INVALID_HANDLE_VALUE;
 	}
 	if (msi_filename_is_set && !did_delete_via_handle) {
-		//TODO: how does DeleteFile deal with reparse points?
 		for (int i = 0; i < 200 && !DeleteFileA(msi_filename) && GetLastError() != ERROR_FILE_NOT_FOUND; ++i)
 			Sleep(200);
 	}
@@ -264,7 +241,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 		int chars = GetWindowTextA(progress, buf, sizeof(buf));
 		if (chars) {
 			start = buf + chars;
-			if (start[-1] == '.' && start[-2] == '.' && start[-3] == '.')
+			if (chars >= 3 && start[-1] == '.' && start[-2] == '.' && start[-3] == '.')
 				start -= 3;
 			else if ((paren = memchr(buf, '(', chars)) && paren > buf)
 				start = paren - 1;
@@ -294,7 +271,7 @@ static void parse_command_line(void)
 		return;
 	for (int i = 1; i < argc; ++i) {
 		if (wcsicmp(argv[i], L"/noprompt") == 0)
-			prompts = false;
+			no_prompts = true;
 	}
 	LocalFree(argv);
 }

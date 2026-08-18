@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package conf
@@ -52,6 +52,9 @@ func ListConfigNames() ([]string, error) {
 }
 
 func LoadFromName(name string) (*Config, error) {
+	if !TunnelNameIsValid(name) {
+		return nil, errors.New("Tunnel name is not valid")
+	}
 	configFileDir, err := tunnelConfigurationsDirectory()
 	if err != nil {
 		return nil, err

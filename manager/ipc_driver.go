@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package manager
@@ -57,5 +57,6 @@ func releaseDriverAdapter(tunnelName string) {
 	}
 	driverAdapter.Lock()
 	delete(driverAdapters, tunnelName)
+	driverAdapter.Adapter.Close()
 	driverAdapter.Unlock()
 }

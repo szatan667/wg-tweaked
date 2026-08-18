@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package ringlogger
@@ -55,6 +55,7 @@ func NewRinglogger(filename, tag string) (*Ringlogger, error) {
 	}
 	err = file.Truncate(int64(unsafe.Sizeof(logMem{})))
 	if err != nil {
+		file.Close()
 		return nil, err
 	}
 	mapping, err := windows.CreateFileMapping(windows.Handle(file.Fd()), nil, windows.PAGE_READWRITE, 0, 0, nil)
@@ -154,11 +155,11 @@ func (rl *Ringlogger) WriteTo(out io.Writer) (n int64, err error) {
 	if rl.log == nil {
 		return 0, io.EOF
 	}
-	log := *rl.log
-	i := log.nextIndex
-	for l := uint32(0); l < maxLines; l++ {
-		line := &log.lines[(i+l)%maxLines]
-		if line.timeNs == 0 {
+	i := atomic.LoadUint32(&rl.log.nextIndex)
+	for l := range uint32(maxLines) {
+		line := &rl.log.lines[(i+l)%maxLines]
+		timeNs := atomic.LoadInt64(&line.timeNs)
+		if timeNs == 0 {
 			continue
 		}
 		index := bytes.IndexByte(line.line[:], 0)
@@ -166,7 +167,7 @@ func (rl *Ringlogger) WriteTo(out io.Writer) (n int64, err error) {
 			continue
 		}
 		var bytes int
-		bytes, err = fmt.Fprintf(out, "%s: %s\n", time.Unix(0, line.timeNs).Format("2006-01-02 15:04:05.000000"), line.line[:index])
+		bytes, err = fmt.Fprintf(out, "%s: %s\n", time.Unix(0, timeNs).Format("2006-01-02 15:04:05.000000"), line.line[:index])
 		if err != nil {
 			return
 		}
@@ -189,19 +190,20 @@ func (rl *Ringlogger) FollowFromCursor(cursor uint32) (followLines []FollowLine,
 	if rl.log == nil {
 		return
 	}
-	log := *rl.log
+	nextIndex := atomic.LoadUint32(&rl.log.nextIndex)
 
 	i := cursor
 	if cursor == CursorAll {
-		i = log.nextIndex
+		i = nextIndex
 	}
 
-	for l := 0; l < maxLines; l++ {
-		line := &log.lines[i%maxLines]
-		if cursor != CursorAll && i%maxLines == log.nextIndex%maxLines {
+	for range maxLines {
+		line := &rl.log.lines[i%maxLines]
+		if cursor != CursorAll && i%maxLines == nextIndex%maxLines {
 			break
 		}
-		if line.timeNs == 0 {
+		timeNs := atomic.LoadInt64(&line.timeNs)
+		if timeNs == 0 {
 			if cursor == CursorAll {
 				i++
 				continue
@@ -211,7 +213,7 @@ func (rl *Ringlogger) FollowFromCursor(cursor uint32) (followLines []FollowLine,
 		}
 		index := bytes.IndexByte(line.line[:], 0)
 		if index > 0 {
-			followLines = append(followLines, FollowLine{string(line.line[:index]), time.Unix(0, line.timeNs)})
+			followLines = append(followLines, FollowLine{string(line.line[:index]), time.Unix(0, timeNs)})
 		}
 		i++
 		nextCursor = i % maxLines

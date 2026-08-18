@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package conf
@@ -27,27 +27,17 @@ const (
 var allowedNameFormat = regexp.MustCompile("^[a-zA-Z0-9_=+.-]{1,32}$")
 
 func isReserved(name string) bool {
-	if len(name) == 0 {
-		return false
-	}
+	name, _, _ = strings.Cut(name, ".")
 	for _, reserved := range reservedNames {
 		if strings.EqualFold(name, reserved) {
 			return true
-		}
-		for i := len(name) - 1; i >= 0; i-- {
-			if name[i] == '.' {
-				if strings.EqualFold(name[:i], reserved) {
-					return true
-				}
-				break
-			}
 		}
 	}
 	return false
 }
 
 func hasSpecialChars(name string) bool {
-	return strings.ContainsAny(name, specialChars) || strings.ContainsAny(name, netshellDllForbidden) || strings.ContainsAny(name, serviceNameForbidden)
+	return strings.ContainsAny(name, specialChars) || strings.ContainsAny(name, netshellDllForbidden) || strings.ContainsAny(name, serviceNameForbidden) || strings.HasPrefix(name, ".") || strings.HasSuffix(name, ".")
 }
 
 func TunnelNameIsValid(name string) bool {

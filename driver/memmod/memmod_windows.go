@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2017-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2017-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package memmod
@@ -37,6 +37,7 @@ type Module struct {
 	nameExports   map[string]uint16
 	entry         uintptr
 	blockedMemory *addressList
+	runtimeFuncs  *windows.RUNTIME_FUNCTION
 }
 
 func (module *Module) BaseAddr() uintptr {
@@ -75,7 +76,7 @@ func (module *Module) copySections(address, size uintptr, oldHeaders *IMAGE_NT_H
 			continue
 		}
 
-		if size < uintptr(sections[i].PointerToRawData+sections[i].SizeOfRawData) {
+		if size < uintptr(sections[i].PointerToRawData)+uintptr(sections[i].SizeOfRawData) {
 			return errors.New("Incomplete section")
 		}
 
@@ -170,7 +171,10 @@ func (module *Module) registerExceptionHandlers() {
 		return
 	}
 	runtimeFuncs := (*windows.RUNTIME_FUNCTION)(unsafe.Pointer(module.codeBase + uintptr(directory.VirtualAddress)))
-	windows.RtlAddFunctionTable(runtimeFuncs, uint32(uintptr(directory.Size)/unsafe.Sizeof(*runtimeFuncs)), module.codeBase)
+	if !windows.RtlAddFunctionTable(runtimeFuncs, uint32(uintptr(directory.Size)/unsafe.Sizeof(*runtimeFuncs)), module.codeBase) {
+		return
+	}
+	module.runtimeFuncs = runtimeFuncs
 }
 
 func (module *Module) finalizeSections() error {
@@ -245,8 +249,16 @@ func (module *Module) performBaseRelocation(delta uintptr) (relocated bool, err 
 		return delta == 0, nil
 	}
 
-	relocationHdr := (*IMAGE_BASE_RELOCATION)(a2p(module.codeBase + uintptr(directory.VirtualAddress)))
-	for relocationHdr.VirtualAddress > 0 {
+	relocBase := module.codeBase + uintptr(directory.VirtualAddress)
+	relocEnd := relocBase + uintptr(directory.Size)
+	relocationHdr := (*IMAGE_BASE_RELOCATION)(a2p(relocBase))
+	for uintptr(unsafe.Pointer(relocationHdr))+unsafe.Sizeof(*relocationHdr) <= relocEnd && relocationHdr.VirtualAddress > 0 {
+		if uintptr(relocationHdr.SizeOfBlock) < unsafe.Sizeof(*relocationHdr) {
+			return false, errors.New("Invalid relocation block size")
+		}
+		if uintptr(unsafe.Pointer(relocationHdr))+uintptr(relocationHdr.SizeOfBlock) > relocEnd {
+			return false, errors.New("Relocation block exceeds directory bounds")
+		}
 		dest := module.codeBase + uintptr(relocationHdr.VirtualAddress)
 
 		relInfos := unsafe.Slice(
@@ -366,7 +378,7 @@ func (module *Module) buildNameExports() error {
 		return errors.New("No export table found")
 	}
 	exports := (*IMAGE_EXPORT_DIRECTORY)(a2p(module.codeBase + uintptr(directory.VirtualAddress)))
-	if exports.NumberOfNames == 0 || exports.NumberOfFunctions == 0 {
+	if exports.NumberOfFunctions == 0 {
 		return errors.New("No functions exported")
 	}
 	if exports.NumberOfNames == 0 {
@@ -456,16 +468,16 @@ func hookRtlPcToFileHeader() error {
 
 // LoadLibrary loads module image to memory.
 func LoadLibrary(data []byte) (module *Module, err error) {
-	addr := uintptr(unsafe.Pointer(&data[0]))
 	size := uintptr(len(data))
 	if size < unsafe.Sizeof(IMAGE_DOS_HEADER{}) {
 		return nil, errors.New("Incomplete IMAGE_DOS_HEADER")
 	}
+	addr := uintptr(unsafe.Pointer(&data[0]))
 	dosHeader := (*IMAGE_DOS_HEADER)(a2p(addr))
 	if dosHeader.E_magic != IMAGE_DOS_SIGNATURE {
 		return nil, fmt.Errorf("Not an MS-DOS binary (provided: %x, expected: %x)", dosHeader.E_magic, IMAGE_DOS_SIGNATURE)
 	}
-	if (size < uintptr(dosHeader.E_lfanew)+unsafe.Sizeof(IMAGE_NT_HEADERS{})) {
+	if dosHeader.E_lfanew < 0 || (size < uintptr(dosHeader.E_lfanew)+unsafe.Sizeof(IMAGE_NT_HEADERS{})) {
 		return nil, errors.New("Incomplete IMAGE_NT_HEADERS")
 	}
 	oldHeader := (*IMAGE_NT_HEADERS)(a2p(addr + uintptr(dosHeader.E_lfanew)))
@@ -475,8 +487,22 @@ func LoadLibrary(data []byte) (module *Module, err error) {
 	if oldHeader.FileHeader.Machine != imageFileProcess {
 		return nil, fmt.Errorf("Foreign platform (provided: %x, expected: %x)", oldHeader.FileHeader.Machine, imageFileProcess)
 	}
-	if (oldHeader.OptionalHeader.SectionAlignment & 1) != 0 {
+	if oldHeader.OptionalHeader.SectionAlignment == 0 || (oldHeader.OptionalHeader.SectionAlignment&(oldHeader.OptionalHeader.SectionAlignment-1)) != 0 {
 		return nil, errors.New("Unaligned section")
+	}
+	if oldHeader.FileHeader.NumberOfSections == 0 {
+		return nil, errors.New("No sections")
+	}
+	if uintptr(oldHeader.FileHeader.SizeOfOptionalHeader) < unsafe.Sizeof(oldHeader.OptionalHeader) {
+		return nil, errors.New("Incomplete optional header")
+	}
+	if oldHeader.OptionalHeader.NumberOfRvaAndSizes < IMAGE_NUMBEROF_DIRECTORY_ENTRIES {
+		return nil, errors.New("Incomplete data directory")
+	}
+	sectionHeadersEnd := uintptr(dosHeader.E_lfanew) + unsafe.Offsetof(oldHeader.OptionalHeader) + uintptr(oldHeader.FileHeader.SizeOfOptionalHeader) +
+		uintptr(oldHeader.FileHeader.NumberOfSections)*unsafe.Sizeof(IMAGE_SECTION_HEADER{})
+	if size < sectionHeadersEnd {
+		return nil, errors.New("Incomplete section headers")
 	}
 	lastSectionEnd := uintptr(0)
 	sections := oldHeader.Sections()
@@ -564,6 +590,10 @@ func LoadLibrary(data []byte) (module *Module, err error) {
 			err = fmt.Errorf("Error relocating module: %w", err)
 			return
 		}
+		if !module.isRelocated {
+			err = errors.New("Module could not be relocated")
+			return
+		}
 	} else {
 		module.isRelocated = true
 	}
@@ -633,7 +663,19 @@ func (module *Module) Free() {
 		}
 		module.modules = nil
 	}
+	if module.runtimeFuncs != nil {
+		windows.RtlDeleteFunctionTable(module.runtimeFuncs)
+		module.runtimeFuncs = nil
+	}
 	if module.codeBase != 0 {
+		loadedAddressRangesMu.Lock()
+		for i := range loadedAddressRanges {
+			if loadedAddressRanges[i].start == module.codeBase {
+				loadedAddressRanges = append(loadedAddressRanges[:i], loadedAddressRanges[i+1:]...)
+				break
+			}
+		}
+		loadedAddressRangesMu.Unlock()
 		windows.VirtualFree(module.codeBase, 0, windows.MEM_RELEASE)
 		module.codeBase = 0
 	}
@@ -654,7 +696,7 @@ func (module *Module) ProcAddressByName(name string) (uintptr, error) {
 		return 0, errors.New("No functions exported by name")
 	}
 	if idx, ok := module.nameExports[name]; ok {
-		if uint32(idx) > exports.NumberOfFunctions {
+		if uint32(idx) >= exports.NumberOfFunctions {
 			return 0, errors.New("Ordinal number too high")
 		}
 		// AddressOfFunctions contains the RVAs to the "real" functions.
@@ -674,7 +716,7 @@ func (module *Module) ProcAddressByOrdinal(ordinal uint16) (uintptr, error) {
 		return 0, errors.New("Ordinal number too low")
 	}
 	idx := ordinal - uint16(exports.Base)
-	if uint32(idx) > exports.NumberOfFunctions {
+	if uint32(idx) >= exports.NumberOfFunctions {
 		return 0, errors.New("Ordinal number too high")
 	}
 	// AddressOfFunctions contains the RVAs to the "real" functions.

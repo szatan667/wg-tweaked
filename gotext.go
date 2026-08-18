@@ -4,7 +4,7 @@
 
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package main
@@ -71,5 +71,12 @@ func main() {
 	err = cmd.Run()
 	if err != nil {
 		panic(err)
+	}
+	for _, lang := range langs {
+		err = os.Rename(filepath.Join("locales", lang, "out.gotext.json"),
+			filepath.Join("locales", lang, "messages.gotext.json"))
+		if err != nil {
+			panic(err)
+		}
 	}
 }

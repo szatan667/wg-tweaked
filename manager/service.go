@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package manager
@@ -9,7 +9,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -17,7 +16,6 @@ import (
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
-	"golang.zx2c4.com/wireguard/windows/driver"
 
 	"golang.zx2c4.com/wireguard/windows/conf"
 	"golang.zx2c4.com/wireguard/windows/elevate"
@@ -79,7 +77,6 @@ func (service *managerService) Execute(args []string, r <-chan svc.ChangeRequest
 
 	startProcess := func(session uint32) {
 		defer func() {
-			runtime.UnlockOSThread()
 			procsLock.Lock()
 			delete(aliveSessions, session)
 			procsLock.Unlock()
@@ -177,17 +174,29 @@ func (service *managerService) Execute(args []string, r <-chan svc.ChangeRequest
 			}
 			theirReader, ourWriter, err := os.Pipe()
 			if err != nil {
+				ourReader.Close()
+				theirWriter.Close()
 				log.Printf("Unable to create pipe: %v", err)
 				return
 			}
 			theirEvents, ourEvents, err := os.Pipe()
 			if err != nil {
+				ourReader.Close()
+				theirWriter.Close()
+				theirReader.Close()
+				ourWriter.Close()
 				log.Printf("Unable to create pipe: %v", err)
 				return
 			}
 			IPCServerListen(ourReader, ourWriter, ourEvents, elevatedToken)
 			theirLogMapping, err := ringlogger.Global.ExportInheritableMappingHandle()
 			if err != nil {
+				ourReader.Close()
+				theirWriter.Close()
+				theirReader.Close()
+				ourWriter.Close()
+				theirEvents.Close()
+				ourEvents.Close()
 				log.Printf("Unable to export inheritable mapping handle for logging: %v", err)
 				return
 			}
@@ -252,15 +261,12 @@ func (service *managerService) Execute(args []string, r <-chan svc.ChangeRequest
 	}
 	procsGroup := sync.WaitGroup{}
 	goStartProcess := func(session uint32) {
-		procsGroup.Add(1)
-		go func() {
+		procsGroup.Go(func() {
 			startProcess(session)
-			procsGroup.Done()
-		}()
+		})
 	}
 
 	go checkForUpdates()
-	go driver.UninstallLegacyWintun() // We uninstall opportunistically here, so that we don't have to carry around the uninstaller code forever.
 
 	var sessionsPointer *windows.WTS_SESSION_INFO
 	var count uint32

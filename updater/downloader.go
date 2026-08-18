@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2019-2022 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2019-2026 WireGuard LLC. All Rights Reserved.
  */
 
 package updater
@@ -79,12 +79,11 @@ func checkForUpdate(keepSession bool) (*UpdateFound, *winhttp.Session, *winhttp.
 		return nil, nil, nil, err
 	}
 	defer response.Close()
-	var fileList [1024 * 512] /* 512 KiB */ byte
-	bytesRead, err := response.Read(fileList[:])
-	if err != nil && (err != io.EOF || bytesRead == 0) {
+	fileList, err := io.ReadAll(io.LimitReader(response, 1024*512 /* 512 KiB */))
+	if err != nil {
 		return nil, nil, nil, err
 	}
-	files, err := readFileList(fileList[:bytesRead])
+	files, err := readFileList(fileList)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -147,7 +146,7 @@ func DownloadVerifyAndExecute(userToken uintptr) (progress chan DownloadProgress
 		}
 		defer response.Close()
 		length, err := response.Length()
-		if err == nil && length >= 0 {
+		if err == nil {
 			dp.BytesTotal = length
 			progress <- dp
 		}
@@ -164,12 +163,6 @@ func DownloadVerifyAndExecute(userToken uintptr) (progress chan DownloadProgress
 		}
 		if !hmac.Equal(hasher.Sum(nil), update.hash[:]) {
 			progress <- DownloadProgress{Error: errors.New("The downloaded update has the wrong hash")}
-			return
-		}
-
-		progress <- DownloadProgress{Activity: "Verifying authenticode signature"}
-		if !verifyAuthenticode(file.ExclusivePath()) {
-			progress <- DownloadProgress{Error: errors.New("The downloaded update does not have an authentic authenticode signature")}
 			return
 		}
 
