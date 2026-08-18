@@ -109,10 +109,9 @@ func parsePersistentKeepalive(s string) (uint16, error) {
 }
 
 func parseTableOff(s string) (bool, error) {
-	switch s {
-	case "off":
+	if s == "off" {
 		return true, nil
-	case "auto", "main":
+	} else if s == "auto" || s == "main" {
 		return false, nil
 	}
 	_, err := strconv.ParseUint(s, 10, 32)
@@ -306,7 +305,7 @@ func FromWgQuick(s, name string) (*Config, error) {
 			default:
 				return nil, &ParseError{l18n.Sprintf("Invalid key for [Interface] section"), key}
 			}
-		case inPeerSection:
+		} else if parserState == inPeerSection {
 			switch key {
 			case "publickey":
 				k, err := parseKeyBase64(val)
@@ -475,10 +474,9 @@ func FromDriverConfiguration(interfaze *driver.Interface, existingConfig *Config
 				a = a.NextAllowedIP()
 			}
 			var ip netip.Addr
-			switch a.AddressFamily {
-			case windows.AF_INET:
+			if a.AddressFamily == windows.AF_INET {
 				ip = netip.AddrFrom4(*(*[4]byte)(a.Address[:4]))
-			case windows.AF_INET6:
+			} else if a.AddressFamily == windows.AF_INET6 {
 				ip = netip.AddrFrom16(*(*[16]byte)(a.Address[:16]))
 			}
 			peer.AllowedIPs = append(peer.AllowedIPs, netip.PrefixFrom(ip, int(a.Cidr)))
